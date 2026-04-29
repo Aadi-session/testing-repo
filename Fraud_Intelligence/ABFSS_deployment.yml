@@ -36,5 +36,5 @@ workflow:
           sink:
             address: dataos://icebase
             options:
-              dest-table: btsschema
+              dest-table: test_mr
               incremental-strategy: append

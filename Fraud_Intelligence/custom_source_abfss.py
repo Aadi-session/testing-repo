@@ -6,6 +6,7 @@ import base64
 from typing import Generator, Dict, Any, Optional
 from adlfs import AzureBlobFileSystem
 from azure.identity import ClientSecretCredential
+import pandas as pd
 
 try:
     import nilus
@@ -25,13 +26,13 @@ logger = logging.getLogger(__name__)
 if NILUS_AVAILABLE:
     @nilus.source()
     def fraud_intelligence_source(uri: str, table: str, **kwargs):
-        """Nilus source: parses URI and returns ServiceNow incidents resource."""
+        """Nilus source: parses URI and returns CSV data from ABFSS."""
 
-        logger.info("Nilus source: uri=%s ", uri)
+        logger.info("Nilus source: uri=%s, table=%s", uri, table)
         parsed = urllib.parse.urlparse(uri)
         qs = urllib.parse.parse_qs(parsed.query)
 
-        tenant_id = (qs.get("client_id") or [""])[0].strip()
+        tenant_id = (qs.get("tenant_id") or [""])[0].strip()
         client_id = (qs.get("client_id") or [""])[0].strip()
         storage_account = (qs.get("account") or [""])[0].strip()
         client_secret = (qs.get("secret") or [""])[0].strip()
@@ -59,6 +60,8 @@ if NILUS_AVAILABLE:
         #Validation to check missing credentials
         if not tenant_id or not client_id or not client_secret or not storage_account or not container:
             missing = []
+            if not tenant_id:
+                missing.append("TENANT_ID")
             if not client_id:
                 missing.append("CLIENT_ID")
             if not client_secret:
@@ -68,14 +71,23 @@ if NILUS_AVAILABLE:
             if not container:
                 missing.append("CONTAINER")
             raise ValueError(
-                "ABFSS credentials are missing. Set {} in the missing parameter"
+                "ABFSS credentials are missing. Set {} in the missing parameter "
                 "and reference it in the workflow dataosSecrets. Currently missing: {}.".format(
                     ", ".join(missing), missing
                 )
             )
 
-        #Fetch source files from each entity's input folder to process folder
-        return fetch_input_files_to_process(tenant_id, client_id,client_secret,storage_account,container)
+        #Fetch and read CSV files from processed folders
+        data_frames = fetch_input_files_to_process(tenant_id, client_id, client_secret, storage_account, container)
+        
+        # Combine all dataframes if multiple files exist
+        if data_frames:
+            combined_df = pd.concat(data_frames, ignore_index=True)
+            logger.info(f"Combined {len(data_frames)} files with {len(combined_df)} rows")
+            return combined_df
+        else:
+            # Return empty dataframe if no files
+            return pd.DataFrame()
 
 
     def fetch_input_files_to_process(tenant_id: str,
@@ -112,7 +124,7 @@ if NILUS_AVAILABLE:
 
         print(entity_folder_names)
 
-        processed_files = []
+        data_frames = []
         for entity_folder in entity_folder_names:
 
                 # Read file content
@@ -136,7 +148,15 @@ if NILUS_AVAILABLE:
 
                     fs.copy(f"{master_input_path}{filename}",f"{master_process_path}{filename}")
                     fs.rm(f"{master_input_path}{filename}")
-                    processed_files.append(f"{master_process_path}{filename}")
+                    
+                    # Read CSV file into dataframe
+                    try:
+                        with fs.open(f"{master_process_path}{filename}", 'rb') as f:
+                            df = pd.read_csv(f)
+                            logger.info(f"Read master file {filename} with {len(df)} rows")
+                            data_frames.append(df)
+                    except Exception as e:
+                        logger.error(f"Error reading file {filename}: {str(e)}")
 
                 else:
                     raise RuntimeError(
@@ -160,14 +180,22 @@ if NILUS_AVAILABLE:
 
                     fs.copy(f"{transaction_input_path}{filename}",f"{transaction_process_path}{filename}")
                     fs.rm(f"{transaction_input_path}{filename}")
-                    processed_files.append(f"{transaction_process_path}{filename}")
+                    
+                    # Read CSV file into dataframe
+                    try:
+                        with fs.open(f"{transaction_process_path}{filename}", 'rb') as f:
+                            df = pd.read_csv(f)
+                            logger.info(f"Read transactional file {filename} with {len(df)} rows")
+                            data_frames.append(df)
+                    except Exception as e:
+                        logger.error(f"Error reading file {filename}: {str(e)}")
 
                 else:
                     raise RuntimeError(
-                            f"No files present in {master_input_path}"
+                            f"No files present in {transaction_input_path}"
                         )
         
-        return processed_files
+        return data_frames
 
 class GroupCompanyFraudulentDataSource(CustomSource):
     def handles_incrementality(self) -> bool:
