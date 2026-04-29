@@ -1,0 +1,40 @@
+name: fradulent-data-ingestion-aadi
+version: v1
+type: workflow
+tags:
+  - fradulent-intelligence
+  - ABFSS
+  - nilus-batch
+  - lakehouse
+description: Ingest group company's fradulent data into DataOS lakehouse. 
+workflow:
+  dag:
+    - name: fradulent-data-dag
+      spec:
+        stack: nilus:1.0
+        compute: runnable-default
+        
+        # dataosSecrets:
+        #   - name: 
+        #     allKeys: true
+        #     consumptionType: envVars
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        logLevel: INFO
+        stackSpec:
+          repo:
+            url: "https://github.com/Aadi-session/testing-repo"
+            baseDir: "testing-repo/Fraud_Intelligence"
+          source:
+            address: 
+          
+          sink:
+            address: dataos://icebase
+            options:
+              dest-table: btsschema
+              incremental-strategy: append
