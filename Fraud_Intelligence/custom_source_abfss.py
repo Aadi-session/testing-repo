@@ -75,7 +75,7 @@ if NILUS_AVAILABLE:
             )
 
         #Fetch source files from each entity's input folder to process folder
-        fetch_input_files_to_process(tenant_id, client_id,client_secret,storage_account,container)
+        return fetch_input_files_to_process(tenant_id, client_id,client_secret,storage_account,container)
 
 
     def fetch_input_files_to_process(tenant_id: str,
@@ -112,6 +112,7 @@ if NILUS_AVAILABLE:
 
         print(entity_folder_names)
 
+        processed_files = []
         for entity_folder in entity_folder_names:
 
                 # Read file content
@@ -135,6 +136,7 @@ if NILUS_AVAILABLE:
 
                     fs.copy(f"{master_input_path}{filename}",f"{master_process_path}{filename}")
                     fs.rm(f"{master_input_path}{filename}")
+                    processed_files.append(f"{master_process_path}{filename}")
 
                 else:
                     raise RuntimeError(
@@ -158,11 +160,14 @@ if NILUS_AVAILABLE:
 
                     fs.copy(f"{transaction_input_path}{filename}",f"{transaction_process_path}{filename}")
                     fs.rm(f"{transaction_input_path}{filename}")
+                    processed_files.append(f"{transaction_process_path}{filename}")
 
                 else:
                     raise RuntimeError(
                             f"No files present in {master_input_path}"
                         )
+        
+        return processed_files
 
 class GroupCompanyFraudulentDataSource(CustomSource):
     def handles_incrementality(self) -> bool:
