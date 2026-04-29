@@ -76,8 +76,8 @@ if NILUS_AVAILABLE:
 
         #Fetch source files from each entity's input folder to process folder
         fetch_input_files_to_process(tenant_id, client_id,client_secret,storage_account,container)
-       
-       
+
+
     def fetch_input_files_to_process(tenant_id: str,
         client_id: str ,
         client_secret: str ,
@@ -96,9 +96,9 @@ if NILUS_AVAILABLE:
             account_name=storage_account,
             credential=credential
         )
-   
+
         FOLDER = "aml"
-       
+
         # List CSV files
         folders = fs.ls(f"{container}/{FOLDER}")
         print(folders);
@@ -115,38 +115,37 @@ if NILUS_AVAILABLE:
         for entity_folder in entity_folder_names:
 
                 # Read file content
-   
                 logger.info("Processing files for entity %s", entity_folder)
 
                 logger.info("File processing from master folder")
                 # Read master folder content
                 master_input_path = f"abfss://{container}@{storage_account}.dfs.core.windows.net/{entity_folder}/master/input/"
                 master_process_path = f"abfss://{container}@{storage_account}.dfs.core.windows.net/{entity_folder}/master/processed/"
-           
+
                 files = fs.ls(master_input_path)
-               
+
                 if files:
                     oldest_file = min(
                         (f for f in fs.ls(master_input_path) if fs.info(f)["type"] == "file"),
                         key=lambda f: fs.info(f)["last_modified"]
                     )
                     logger.info("Oldest File %s" , fs.info(oldest_file)["name"])
-                   
+
                     filename = oldest_file.split("/")[-1]
 
                     fs.copy(f"{master_input_path}{filename}",f"{master_process_path}{filename}")
                     fs.rm(f"{master_input_path}{filename}")
-                   
+
                 else:
-                     raise RuntimeError(
-                            "No files present in %s",master_input_path
+                    raise RuntimeError(
+                            f"No files present in {master_input_path}"
                         )
 
                 logger.info("File processing from transactional folder")
                 # Read Transaction folder content
                 transaction_input_path = f"abfss://{container}@{storage_account}.dfs.core.windows.net/{entity_folder}/transactional/input/"
                 transaction_process_path = f"abfss://{container}@{storage_account}.dfs.core.windows.net/{entity_folder}/transactional/processed/"
-           
+
                 files = fs.ls(transaction_input_path)
                 if files:
                     oldest_file = min(
@@ -159,10 +158,10 @@ if NILUS_AVAILABLE:
 
                     fs.copy(f"{transaction_input_path}{filename}",f"{transaction_process_path}{filename}")
                     fs.rm(f"{transaction_input_path}{filename}")
-                   
+
                 else:
                     raise RuntimeError(
-                            "No files present in %s",master_input_path
+                            f"No files present in {master_input_path}"
                         )
 
 class GroupCompanyFraudulentDataSource(CustomSource):
@@ -171,8 +170,6 @@ class GroupCompanyFraudulentDataSource(CustomSource):
 
     def nilus_source(self, uri: str, table: str, **kwargs):
         if NILUS_AVAILABLE:
-            return fraud_intelligence_source(uri=uri, table=table, **kwargs):
+            return fraud_intelligence_source(uri=uri, table=table, **kwargs)
         else:
-            raise.RuntimeError("Nilus not available")
-           
-           
+            raise RuntimeError("Nilus not available")
