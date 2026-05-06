@@ -1,0 +1,46 @@
+name: fradulent-data-ingestion-aadi
+version: v1
+type: workflow
+tags:
+  - fradulent-intelligence
+  - ABFSS
+  - nilus-batch
+  - lakehouse
+description: Ingest group company's fradulent data into DataOS lakehouse.
+workflow:
+  dag:
+    - name: fradulent-data-dag
+      spec:
+        stack: nilus:1.0
+        compute: runnable-default
+        resources:
+          requests:
+            cpu: 500m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 1Gi
+        logLevel: INFO
+        dataosSecrets:
+          - name: abfss-fraud-cred
+            allKeys: true
+            consumptionType: envVars
+          # - name: git-secret-dj
+          #   allKeys: true
+          #   consumptionType: envVars
+        stackSpec:
+          repo:
+            url: "https://bitbucket.org/rubik_/queries"
+            syncFlags:
+              - '--ref=main' 
+            baseDir: "queries/deepak_jaiswal/azure_blob/custom-code"
+          source:
+            address: "custom://GroupCompanyFraudulentDataSource?tenant_id={TENANT_ID}&client_id={CLIENT_ID}&secret={CLIENT_SECRET}&account={ACCOUNT}&container={CONTAINER}"
+            options:
+              source-table: "test_mr"
+          sink:
+            address: dataos://icebase?acl=rw
+            options:
+              dest-table: sandbox
+              incremental-strategy: append
+ 
