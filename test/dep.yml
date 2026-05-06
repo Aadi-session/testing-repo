@@ -30,10 +30,10 @@ workflow:
           #   consumptionType: envVars
         stackSpec:
           repo:
-            url: "https://bitbucket.org/rubik_/queries"
+            url: "https://github.com/Aadi-session/testing-repo"
             syncFlags:
               - '--ref=main' 
-            baseDir: "queries/deepak_jaiswal/azure_blob/custom-code"
+            baseDir: "testing-repo/test"
           source:
             address: "custom://GroupCompanyFraudulentDataSource?tenant_id={TENANT_ID}&client_id={CLIENT_ID}&secret={CLIENT_SECRET}&account={ACCOUNT}&container={CONTAINER}"
             options:
